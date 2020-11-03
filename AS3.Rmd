@@ -1,6 +1,6 @@
 ---
 title: "US Presidential Election 2020 prediction using Logistic Regression "
-author: "king"
+author: "1002564664"
 date: "November 2, 2020"
 output: pdf_document
 
