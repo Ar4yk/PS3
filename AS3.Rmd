@@ -1,0 +1,149 @@
+---
+title: "US Presidential Election 2020 prediction using Logistic Regression "
+author: "1002564664"
+date: "November 2, 2020"
+output: pdf_document
+
+---
+
+The code and data is available here: https://github.com/Ar4yk/PS3
+
+
+```{r, include=FALSE, echo=FALSE}
+library(tidyverse)
+# Data
+#Cleaned census
+census_data <- read_csv("census_data.csv")
+#Cleaned survey
+survey_data <- read.csv("survey_data.csv") %>% drop_na() 
+
+# to get n's for our post-stratification
+census_data<- census_data %>% count(age, sex)
+```
+
+
+## Model 
+
+I'm interested in predicting election outcomes of the American Election 2020. I will use two logistic regression models on survey data, one for Donald Trump and another for Joe Biden. Survey data is provided by Nationscape Data Set and published by the Democracy Fund, UCLA Nationscape groups. Survey was conducted on June 25th 2020 (Tausanovitch & Vavreck, 2020). In addition, I will use post-stratification technique on census data, provided by IPUMS as the 'American Community Survey 2014-2018 5-Year Sample'. I will use two predictors: gender and age (18 or older) to predict the election results.
+
+
+## Model Specifics:
+
+I will use a logistic regression to model the proportion of voters who will vote for Donald Trump and Joe Biden. A logistic model is suitable because the voting outcomes for both candidates are either Yes or No, thus only two possible choices. Therefore we can define voting outcome as Bernoulli random variable. To model the probability of voting for specific presidential candidate, I will use age(18 or older) and gender. There are two reasons for this:
+
+1) Record young voters turnout for American Election 2020.
+
+2) Easy to model and interpret. 
+
+After applying glm() function for survey data and choosing family of binomial distribution, I obtained the following logistic regression model:
+
+$$ log(\frac{p}{1-p}) = \beta_0+\beta_1  x_{age} + \beta_2x_{gender(male,female)} + \epsilon$$
+Where $p$ represents the probability of observations who will vote for either Joe Biden or Donald Trump, and $(1-p)$ means the probability of the observations who will not vote for them. $\beta_0$ represents the intercept of the model. 
+
+$\beta_1$ represents the slope of age in the logistic model. As the age increases by 1 year, the log-odds of voting for Presidential candidate will increase by $\beta_1$.
+
+$\beta_2$ represents the slope of the gender. If the value of $\beta_2$ is larger than 0, then female or male voters are more likely to vote for their Presidential candidate.
+
+Finally, by this model, change in either $\beta_1$ or $\beta_2$ will affect the probability of voting for specific candidate. 
+
+```{r, echo=FALSE, include=FALSE}
+
+#trump model
+logistic_model_trump <- glm(vote_trump ~  age + gender , data = survey_data, family= "binomial")
+
+
+
+# biden model
+logistic_model_biden <-  glm(vote_biden ~ age + gender, data = survey_data, family= "binomial")
+
+
+# Model Results 
+summary(logistic_model_trump)
+summary(logistic_model_biden)
+```
+
+## Post-Stratification 
+ 
+I will apply post-stratification technique to partition the voting population into different cells. Then logistic regression is applied within each cell to calculate the estimator. In logistic regression model, observations are categorized based on their age and gender. The variable called $n$ obtained by counting number of observations in age and in gender groups. 
+Finally, in order to find possible next President of the United States, I calculated outcomes for Donald Trump and Joe Biden respectively. 
+
+
+```{r, echo=FALSE} 
+# if error : Can't rename columns that don't exist. x Column `sex` doesn't exist, appear, please, run code again from the first part
+census_data<- census_data %>% rename(gender = sex) %>% 
+  # removing lower-case
+  mutate(gender = ifelse(gender == "female","Male","Female"))
+```
+
+
+
+
+```{r, echo=FALSE, include=FALSE}
+# let's create log odds estimation for Trump
+
+# but first lets filter young people
+census_data<- census_data %>% filter(age >=18)
+
+
+census_data$logodds_estimate <- logistic_model_trump %>% 
+  predict(newdata = census_data)
+
+#estimate 
+census_data$estimates <- exp(census_data$logodds_estimate)/(1+exp(census_data$logodds_estimate))
+
+census_data %>% 
+  mutate(prop = estimates*n) %>% summarise(trump_= sum(prop)/sum(n))
+
+
+#Similarly for Biden
+
+census_data$logodds_estimate <- logistic_model_biden %>% 
+  predict(newdata = census_data)
+
+#estimates 
+census_data$estimates <- exp(census_data$logodds_estimate)/(1+exp(census_data$logodds_estimate))
+
+census_data %>% 
+  mutate(prop = estimates*n) %>% summarise(biden_win= sum(prop)/sum(n))
+
+
+
+```
+
+## Results
+Post-stratification shows that an estimate value of 34.2251% of voters might vote for Donald Trump and 46.2786% might vote for Joe Biden in the upcoming 2020 election. In addition, by summarizing the logistic regression model, I find that, older population is more in favor to Donald Trump than to Joe Biden. This is based on the slope for age, for Trump $0.017862$ and $-0.002917$ for Biden.   
+
+## Discussion
+
+## Summary: 
+Main objective was to predict the possible outcome of the upcoming 2020 US election by using logistic regression with predictor variables age(older then 18) and gender. In addition, post stratification techniques was used to obtain an estimate value for voting preferences. After using a logistic regression model based on survey data, and a post stratification on census data , with approximately 46.2786%, Americans will vote for Joe Biden. In conclusion, based on the results above, I think that Joe Biden will win the upcoming elections, despite flaws in my analysis. 
+
+
+## Weaknesses
+
+There are lots of them. The biggest one is that model based on two predictors, age(18 or older) and gender. Therefore, is quite naive to assume that voting outcome will be based 
+on such small number of predictors. Secondly, there was barely any data cleaning, thus the data sets will contain possible outliers or influential points.
+
+## Next Steps
+
+I predict that Joe Biden would receive 46.3% of vote in the upcoming election, which is on pair with the actual Poll Averages. For future steps, I want to improve my model by adding more dependent variables. For example, household income, education and State of residence. There is a possibility that young, university-educated population in California or New York states will vote for Biden, rather than for Trump and vice versa. This small addition would improve my estimation for future elections. 
+
+
+
+## References
+
+1. Wu, C., & Thompson, M. E. (2020). Sampling theory and practice. Springer.
+
+2. R Core Team. (2020). The R project for statistical computing. Retrieved from  https://www.r-project.org/
+
+3. Tausanovitch, C., & Vavreck, L. (2020). Democracy fund + UCLA nationscape user guide. Democracy Fund Voter Study Group. 
+Retrieved from https://www.voterstudygroup.org/uploads/reports/Data/Nationscape-User-Guide_2020sep10.pdf
+
+4. Ruggles, S., Flood, S., Goeken, R., Grover, J., Meyer, E., Pacas, J., & Sobek, M. (2020). U.S. census data: usa_00002.dta. IPUMS USA.
+Retrieved from  https://usa.ipums.org/usa/
+
+5. Wickham, H., Averick M., Bryan J., Chang W., McGowan, L. D., Francois R., Grolemund G., Hayes A., Henry, L., Hester J., Kuhn M., Pedersen T. L., Miller E., Bache, S. M., Muller, K., Ooms J., Robinson, D., Seidel, D. P., Spinu, D.,... Yutani, H. (2019). Welcome to the Tidyverse. The Journal of Open Source Software. Retrieved from   https://joss.theoj.org/papers/10.21105/joss.01686 
+
+6. Democracy Fund Voter Study Group. Survey data: ns20200625.dta. Retrieved from: https://www.voterstudygroup.org/publication/nationscape-data-set. 
+
+
