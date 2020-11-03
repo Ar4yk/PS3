@@ -12,8 +12,6 @@
 library(haven)
 library(tidyverse)
 
-library(haven)
-library(tidyverse)
 # Read in the raw data (You might need to change this if you use a different dataset)
 # setwd is commented, uncomment if you need to use it
 #setwd("C:/STA304/STA304_PS3")
